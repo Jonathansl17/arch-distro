@@ -192,6 +192,7 @@ They were not observed in a VM yet.
 | Issue | Cause | How install.sh handles it |
 |-------|-------|---------------------------|
 | arch-config's `install.sh` would abort on a fresh VM | AUR `packettracer` needs the Cisco `.deb` downloaded by hand, and `set -e` stops everything | `step-base.sh` runs arch-config from a temp copy without that package |
+| arch-config installs the author's whole dev setup (about 9 GB of official packages + IDEs from AUR) | it is a personal workstation config | the temp copy drops the packages in `config/base-skip-*.txt` and the nvm/pnpm/Claude/go section |
 | ssh to the VM would be blocked after the base layer | arch-config enables ufw with default deny and no ssh rule | security step disables ufw and loads `security/nftables.conf` |
 
 ## Problems found and how we solved them

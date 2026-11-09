@@ -1,0 +1,75 @@
+# Official packages removed from arch-config's list before its installer runs.
+# The distro keeps the desktop (X, bspwm, sxhkd, alacritty, lemonbar deps,
+# PipeWire, NetworkManager, Bluetooth, fonts, file manager, basic viewers)
+# and drops the author's development, office and media tools.
+
+# Boot: this distro uses systemd-boot, not GRUB
+grub
+os-prober
+
+# Apps
+obs-studio
+telegram-desktop
+discord
+freerdp
+libreoffice-fresh
+vlc
+vlc-plugin-ffmpeg
+vlc-plugin-live555
+wine
+wine-gecko
+wine-mono
+winetricks
+xournalpp
+
+# Development (git stays: it is needed to clone this repo and the AUR)
+github-cli
+cmake
+clang
+gdb
+docker
+docker-compose
+jdk21-openjdk
+jdk-openjdk
+maven
+nodejs
+npm
+deno
+postgresql
+dbeaver
+python-pyqt5
+# Without pipx, arch-config skips its pipx tools (sherlock, yt-dlp, ...)
+python-pipx
+python-pymupdf
+rust
+tk
+android-tools
+graphviz
+llvm
+utf8cpp
+cloc
+
+# CLI extras
+pandoc-cli
+perl-image-exiftool
+pahole
+zbar
+
+# Network tooling
+tcpdump
+wireshark-qt
+
+# Typesetting
+texlive-basic
+texlive-latexrecommended
+texlive-latexextra
+texlive-langspanish
+texlive-binextra
+texlive-fontsrecommended
+texlive-xetex
+typst
+
+# Eye candy
+cmatrix
+nyancat
+asciiquarium

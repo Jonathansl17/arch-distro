@@ -1,0 +1,21 @@
+# AUR packages removed from arch-config's list before its installer runs.
+# arch-config itself is never modified: install.sh copies it to a temp dir and
+# filters the lists there. Only brave-bin and ttf-ms-fonts are kept: the
+# distro needs a browser (Super + B) and the fonts, not the author's dev tools.
+
+android-sdk-cmdline-tools-latest
+burpsuite
+freeoffice
+intellij-idea-ultimate-edition
+jmeter
+k6
+ngrok
+obs-backgroundremoval
+# PKGBUILD needs the Cisco .deb downloaded by hand: an unattended run fails.
+packettracer
+pgadmin4-desktop-bin
+pgadmin4-server-bin
+postman-bin
+python312
+rstudio-desktop-bin
+visual-studio-code-bin

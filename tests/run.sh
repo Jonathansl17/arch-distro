@@ -49,15 +49,37 @@ test_read_list() {
     rm -f "$f"
 }
 
-test_filter_aur_list() {
+test_filter_list() {
     local list skip
     list="$(mktemp)"; skip="$(mktemp)"
     printf 'brave-bin\npackettracer\npackettracer-extra\n' > "$list"
     printf '# why\npackettracer\n' > "$skip"
-    filter_aur_list "$list" "$skip"
-    expect_eq "filter_aur_list removes exact names only" "$(xargs < "$list")" \
+    filter_list "$list" "$skip"
+    expect_eq "filter_list removes exact names only" "$(xargs < "$list")" \
         "brave-bin packettracer-extra"
     rm -f "$list" "$skip"
+}
+
+# The real arch-config clone, staged and trimmed exactly like step_base does.
+test_staged_base() {
+    local src="${ARCH_CONFIG_DIR:-$HOME/arch-config}" stage pkg
+    [[ -f "$src/install.sh" ]] || { warn "no arch-config clone: staging test skipped"; return; }
+    # shellcheck source=../config/settings.sh
+    source "$REPO/config/settings.sh"
+    stage="$(mktemp -d)"
+    cp -a "$src/." "$stage/"
+    filter_list "$stage/pacman/pacman-packages.txt" "$REPO/$BASE_SKIP_PACMAN_FILE"
+    filter_list "$stage/aur/aur-packages.txt" "$REPO/$BASE_SKIP_AUR_FILE"
+    drop_section "$stage/install.sh" "$BASE_SKIP_SECTION_START" "$BASE_SKIP_SECTION_END"
+    for pkg in visual-studio-code-bin pgadmin4-desktop-bin docker texlive-basic; do
+        grep -qx "$pkg" "$stage/pacman/pacman-packages.txt" "$stage/aur/aur-packages.txt" \
+            && fail "staged lists still contain $pkg"
+    done
+    grep -q 'nvm\|claude.ai/install' "$stage/install.sh" && fail "dev section still in staged install.sh"
+    grep -qx bspwm "$stage/pacman/pacman-packages.txt" || fail "bspwm was filtered out"
+    bash -n "$stage/install.sh" && pass "staged arch-config is trimmed and still valid bash" \
+        || fail "staged install.sh syntax"
+    rm -rf "$stage"
 }
 
 test_configs() {
@@ -84,7 +106,8 @@ test_install_usage() {
 test_c
 test_shell_syntax
 test_read_list
-test_filter_aur_list
+test_filter_list
+test_staged_base
 test_configs
 test_install_usage
 (( failures == 0 )) && ok "all tests passed" || die "$failures test(s) failed"

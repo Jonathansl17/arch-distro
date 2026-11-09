@@ -49,11 +49,21 @@ again, so that pair repeats on every full run. Copy your install log to
 ### Base layer
 
 `lib/step-base.sh` clones arch-config to `~/arch-config` if it is missing,
-copies it to a temp dir and drops the AUR packages listed in
-[config/base-aur-skip.txt](config/base-aur-skip.txt) from that copy. Today the
-list only has `packettracer`, whose PKGBUILD needs a manual download and would
-abort an unattended run. Then it runs that copy's `install.sh`. arch-config
-enables ufw, and the security step replaces it with native nftables (theme 9).
+copies it to a temp dir and trims that copy down to the desktop:
+
+- [config/base-skip-pacman.txt](config/base-skip-pacman.txt) drops the
+  development, office, media and TeX packages (docker, JDKs, node, postgres,
+  libreoffice, wine, texlive...) and GRUB (this distro boots with systemd-boot).
+- [config/base-skip-aur.txt](config/base-skip-aur.txt) drops every AUR
+  package except `brave-bin` and `ttf-ms-fonts` (VS Code, IntelliJ, pgAdmin,
+  Postman, Packet Tracer...).
+- The nvm / pnpm / Claude Code / go section of arch-config's installer is
+  removed from the copy. Without `python-pipx`, its pipx tools are skipped too.
+
+What stays: Xorg, bspwm, sxhkd, alacritty, lemonbar, slock, PipeWire,
+NetworkManager, Bluetooth, fonts, pcmanfm, neovim, Brave and the dotfiles.
+Then the copy's `install.sh` runs. arch-config enables ufw, and the security
+step replaces it with native nftables (theme 9).
 
 ## What gets installed
 

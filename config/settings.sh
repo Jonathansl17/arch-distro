@@ -5,8 +5,14 @@
 # --- Base layer (arch-config, applied untouched from a staged copy) ---
 ARCH_CONFIG_URL="https://github.com/Jonathansl17/arch-config.git"
 ARCH_CONFIG_DIR="${ARCH_CONFIG_DIR:-$HOME/arch-config}"
-# AUR packages skipped when staging arch-config (one name per line).
-BASE_AUR_SKIP_FILE="config/base-aur-skip.txt"
+# Packages dropped from arch-config's lists when staging it (one per line):
+# the distro keeps the desktop, not the author's development tools.
+BASE_SKIP_PACMAN_FILE="config/base-skip-pacman.txt"
+BASE_SKIP_AUR_FILE="config/base-skip-aur.txt"
+# Section of arch-config's install.sh removed from the staged copy: nvm,
+# pnpm, Claude Code and go tools (developer setup fetched with curl/go).
+BASE_SKIP_SECTION_START="# --- 4e. nvm"
+BASE_SKIP_SECTION_END="# --- 4f. sysctl"
 
 # --- Logs ---
 LOG_DIR="$HOME/.local/state/arch-distro"
