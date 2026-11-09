@@ -1,0 +1,11 @@
+# Started by udev (90-ad-usb-storage.rules) with the kernel device name as
+# instance: ad-usb-event@sdb.service
+[Unit]
+Description=Log USB storage device %i
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/arch-distro/ad-usb-event.sh %i
+LogsDirectory=arch-distro

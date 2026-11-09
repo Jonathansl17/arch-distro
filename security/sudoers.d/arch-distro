@@ -1,0 +1,17 @@
+# Theme 9: sudo restricted by command. Installed to /etc/sudoers.d/arch-distro
+# (0440, validated with visudo -cf before install).
+#
+# Members of the operator group (OPERATOR_GROUP in config/settings.sh) may manage the monitor service and read the
+# firewall, nothing else. Absolute paths and exact arguments only: a
+# wildcard such as "systemctl *" would allow "systemctl edit", which opens an
+# editor as root and is a full root shell. journalctl gets --no-pager for the
+# same reason (less can spawn a shell with "!").
+
+Cmnd_Alias AD_MONITOR = /usr/bin/systemctl start ad-monitor.service, \
+                        /usr/bin/systemctl stop ad-monitor.service, \
+                        /usr/bin/systemctl restart ad-monitor.service, \
+                        /usr/bin/journalctl --no-pager -u ad-monitor.service
+Cmnd_Alias AD_FIREWALL_RO = /usr/bin/nft list ruleset
+
+Defaults:%@OPERATOR_GROUP@ timestamp_timeout=0, use_pty
+%@OPERATOR_GROUP@ ALL=(root) NOPASSWD: AD_MONITOR, AD_FIREWALL_RO

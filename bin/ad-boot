@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# ad-boot - follow the boot chain UEFI -> loader -> kernel -> initramfs ->
+# systemd targets (theme 7).
+#
+#   ad-boot              one-screen summary of every stage
+#   ad-boot blame [N]    slowest N units
+#   ad-boot chain        critical chain to the default target
+#   ad-boot boots        boots recorded by the journal
+set -euo pipefail
+# shellcheck source=../lib/log.sh
+source "${AD_LIB:-/usr/lib/arch-distro}/log.sh"
+
+MKINITCPIO_CONF="/etc/mkinitcpio.conf"
+DEFAULT_BLAME=10
+
+summary() {
+    say "Firmware / boot loader"
+    if [[ -d /sys/firmware/efi ]]; then
+        echo "  UEFI firmware, $(cat /sys/firmware/efi/fw_platform_size)-bit"
+    else
+        echo "  legacy BIOS (the project requires UEFI)"
+    fi
+    sudo bootctl status 2>/dev/null | grep -E 'Product|Current Entry|Default Entry' \
+        | sed 's/^ */  /' || echo "  bootctl: not systemd-boot or no access"
+    say "Kernel"
+    echo "  $(uname -r)"
+    echo "  cmdline: $(cat /proc/cmdline)"
+    say "initramfs (mkinitcpio hooks, run in this order)"
+    grep -E '^HOOKS=' "$MKINITCPIO_CONF" | sed 's/^/  /'
+    say "systemd"
+    echo "  default target: $(systemctl get-default)"
+    systemd-analyze time | sed 's/^/  /'
+}
+
+case "${1:-summary}" in
+    summary) summary ;;
+    blame)   systemd-analyze blame | head -n "${2:-$DEFAULT_BLAME}" ;;
+    chain)   systemd-analyze critical-chain ;;
+    boots)   journalctl --list-boots --no-pager ;;
+    *)       sed -n '2,9p' "$0"; exit 2 ;;
+esac

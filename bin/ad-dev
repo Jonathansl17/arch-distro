@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# ad-dev - devices, drivers and interrupts (theme 8).
+#
+#   ad-dev                 PCI devices with their kernel driver (from sysfs)
+#   ad-dev irq [N]         top N interrupt lines (/proc/interrupts totals)
+#   ad-dev irqdiff CMD...  interrupts that grew while CMD ran
+#   ad-dev mod NAME        modinfo summary + who uses the module
+#   ad-dev usb             last USB events logged by the udev rule
+set -euo pipefail
+# shellcheck source=../lib/log.sh
+source "${AD_LIB:-/usr/lib/arch-distro}/log.sh"
+
+PCI_ROOT="/sys/bus/pci/devices"
+USB_LOG="/var/log/arch-distro/usb-events.log"
+DEFAULT_TOP=10
+USB_LOG_LINES=15
+
+cmd_pci() {
+    local dev cls drv
+    printf '%-14s %-8s %-14s %s\n' "SLOT" "CLASS" "DRIVER" "DEVICE"
+    for dev in "$PCI_ROOT"/*; do
+        cls="$(cat "$dev/class")"
+        drv="none"
+        [[ -L "$dev/driver" ]] && drv="$(basename "$(readlink "$dev/driver")")"
+        printf '%-14s %-8s %-14s %s\n' "$(basename "$dev")" "${cls:0:6}" "$drv" \
+            "$(lspci -s "$(basename "$dev")" | cut -d' ' -f2-)"
+    done
+}
+
+# irq_totals -> "IRQ TOTAL NAME" summing every CPU column.
+irq_totals() {
+    awk 'NR == 1 { ncpu = NF; next }
+         { total = 0
+           for (i = 2; i <= ncpu + 1 && $i ~ /^[0-9]+$/; i++) total += $i
+           name = ""
+           for (j = ncpu + 2; j <= NF; j++) name = name " " $j
+           print $1, total, name }' /proc/interrupts
+}
+
+cmd_irq() {
+    irq_totals | sort -k2 -nr | head -n "${1:-$DEFAULT_TOP}"
+}
+
+cmd_irqdiff() {
+    (( $# > 0 )) || die "usage: ad-dev irqdiff CMD..."
+    local before after
+    before="$(mktemp)"; after="$(mktemp)"
+    trap 'rm -f "$before" "$after"' RETURN
+    irq_totals > "$before"
+    "$@"
+    irq_totals > "$after"
+    say "interrupts raised while running: $*"
+    awk 'NR == FNR { before[$1] = $2; next }
+         { d = $2 - before[$1]; if (d > 0) { $2 = d; print } }' "$before" "$after" \
+        | sort -k2 -nr | head -n "$DEFAULT_TOP"
+}
+
+cmd_mod() {
+    local name="${1:?usage: ad-dev mod NAME}"
+    modinfo -F filename "$name"
+    modinfo "$name" | grep -E '^(description|license|depends|parm)' || true
+    awk -v m="$name" '$1 == m { print "loaded, refcount " $3 ", used by: " $4 }' \
+        /proc/modules
+}
+
+case "${1:-pci}" in
+    pci)     cmd_pci ;;
+    irq)     cmd_irq "${2:-}" ;;
+    irqdiff) shift; cmd_irqdiff "$@" ;;
+    mod)     cmd_mod "${2:-}" ;;
+    usb)     tail -n "$USB_LOG_LINES" "$USB_LOG" ;;
+    *)       sed -n '2,9p' "$0"; exit 2 ;;
+esac

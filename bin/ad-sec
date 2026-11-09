@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ad-sec - protection and security report (theme 9).
+#
+#   ad-sec            firewall, listening ports, ssh, sudo rules, shared dir
+#   ad-sec fails [N]  last N authentication failures in the journal
+set -euo pipefail
+AD_LIB="${AD_LIB:-/usr/lib/arch-distro}"
+# shellcheck source=../lib/log.sh
+source "$AD_LIB/log.sh"
+# shellcheck source=../config/settings.sh
+source "$AD_LIB/settings.sh"  # SHARED_DIR
+
+SUDOERS_FILE="/etc/sudoers.d/arch-distro"
+SSHD_KEYS="port|permitrootlogin|passwordauthentication|pubkeyauthentication|maxauthtries|allowgroups|x11forwarding"
+DEFAULT_FAILS=15
+
+report() {
+    say "Firewall (nftables)"
+    sudo nft list ruleset | grep -E 'table|chain|policy|accept|drop' | sed 's/^\s*/  /'
+    say "Listening TCP sockets"
+    ss -tlnH | awk '{print "  " $4}'
+    say "SSH effective settings (sshd -T)"
+    sudo sshd -T 2>/dev/null | grep -E "^($SSHD_KEYS) " | sed 's/^/  /'
+    say "sudo rules ($SUDOERS_FILE)"
+    sudo grep -vE '^\s*(#|$)' "$SUDOERS_FILE" | sed 's/^/  /'
+    say "Shared directory $SHARED_DIR"
+    ls -ld "$SHARED_DIR" | sed 's/^/  /'
+    getfacl -p "$SHARED_DIR" 2>/dev/null | sed 's/^/  /'
+}
+
+case "${1:-report}" in
+    report) report ;;
+    fails)  sudo journalctl --no-pager -g 'authentication failure|Failed password|NOT in sudoers|command not allowed' \
+                | tail -n "${2:-$DEFAULT_FAILS}" ;;
+    *)      sed -n '2,6p' "$0"; exit 2 ;;
+esac

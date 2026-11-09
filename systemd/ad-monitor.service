@@ -1,0 +1,35 @@
+# Theme 4: long-running service with dependencies, restart policy, resource
+# limits (cgroup v2) and sandboxing. Inspect with: ad-svc, systemd-cgls,
+# journalctl -u ad-monitor.
+[Unit]
+Description=arch-distro pressure monitor (PSI and load to the journal)
+Documentation=man:systemd.resource-control(5) man:systemd.service(5)
+# Needs the journal to log and /proc/pressure (mounted with /proc).
+Wants=systemd-journald.socket
+After=systemd-journald.socket local-fs.target
+# Give up after 5 crashes in 60 s instead of restarting forever.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/arch-distro/monitor.env
+ExecStart=/usr/lib/arch-distro/ad-monitor.sh
+Restart=on-failure
+RestartSec=2s
+
+# Resource limits, enforced by the cpu and memory cgroup controllers.
+CPUQuota=20%
+MemoryMax=64M
+MemorySwapMax=0
+TasksMax=32
+
+# Least privilege: throwaway UID, read-only OS, no home, no new privileges.
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

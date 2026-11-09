@@ -1,0 +1,5 @@
+# Units enabled (and started) by install.sh after the package is installed.
+nftables.service
+sshd.service
+ad-monitor.service
+ad-report.timer

@@ -1,0 +1,43 @@
+# Official packages added by arch-distro on top of arch-config.
+# One per line, comments allowed. Installed with pacman --needed.
+
+# Build toolchain for src/ and the PKGBUILD
+base-devel
+gcc
+make
+
+# Theme 1 - processes and scheduling
+util-linux          # taskset, chrt
+sysstat             # pidstat, mpstat
+stress-ng
+
+# Theme 2 - memory
+zram-generator
+smem
+
+# Theme 3 - file system
+btrfs-progs
+snapper
+fio
+e2fsprogs           # mkfs.ext4 for the comparison image
+
+# Theme 5 - IPC
+strace
+
+# Theme 6 - packages
+pacman-contrib      # pactree, pacdiff
+
+# Capa 1 evidence and theme 7 - boot
+efibootmgr
+
+# Theme 8 - I/O and devices
+pciutils            # lspci
+usbutils            # lsusb
+kmod                # lsmod, modinfo, modprobe
+
+# Theme 9 - protection and security
+nftables
+openssh
+acl
+sudo
+nmap

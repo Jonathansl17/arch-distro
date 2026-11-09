@@ -1,0 +1,15 @@
+# Theme 6: after every transaction, list the config files pacman could not
+# overwrite (.pacnew) or saved aside (.pacsave), so they are never forgotten,
+# and append the transaction summary to /var/log/arch-distro/pacman-hook.log.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = arch-distro: checking for .pacnew/.pacsave files...
+When = PostTransaction
+Exec = /usr/lib/arch-distro/ad-pacnew-check.sh
+NeedsTargets

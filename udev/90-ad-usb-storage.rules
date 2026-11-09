@@ -1,0 +1,8 @@
+# Theme 8: react to a USB mass-storage device being plugged in or removed.
+# udev must not run long jobs itself (RUN+= is killed after a timeout), so it
+# only asks systemd to start a templated unit; %k is the kernel name (sdb).
+# Test: udevadm monitor --udev --property, then plug a USB stick.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{DEVTYPE}=="disk", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="ad-usb-event@%k.service"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{DEVTYPE}=="disk", \
+    RUN+="/usr/bin/logger -t ad-usb removed /dev/%k"

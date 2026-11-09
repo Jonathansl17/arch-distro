@@ -1,0 +1,10 @@
+# C build output
+src/build/
+
+# makepkg working dirs and artifacts
+pacman/src/
+pacman/pkg/
+pacman/*.pkg.tar.*
+
+# Experiment output is copied into docs/ by hand once reviewed
+results/

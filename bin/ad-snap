@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# ad-snap - btrfs snapshots through snapper (theme 3).
+#
+#   ad-snap                    list snapshots of /
+#   ad-snap take DESCRIPTION   take a manual snapshot, prints its number
+#   ad-snap diff A B           files changed between snapshots A and B
+#   ad-snap undo A B           revert the changes made between A and B
+#   ad-snap layout             subvolumes and space usage of the root fs
+set -euo pipefail
+AD_LIB="${AD_LIB:-/usr/lib/arch-distro}"
+# shellcheck source=../lib/log.sh
+source "$AD_LIB/log.sh"
+# shellcheck source=../config/settings.sh
+source "$AD_LIB/settings.sh"  # SNAPPER_CONFIG
+
+[[ "$(findmnt -no FSTYPE /)" == "btrfs" ]] || die "/ is not btrfs"
+command -v snapper >/dev/null || die "snapper not installed"
+
+snap() { sudo snapper -c "$SNAPPER_CONFIG" "$@"; }
+
+case "${1:-list}" in
+    list)   snap list ;;
+    take)   snap create --print-number --cleanup-algorithm number \
+                --description "${2:?usage: ad-snap take DESCRIPTION}" ;;
+    diff)   snap status "${2:?A}..${3:?B}" ;;
+    undo)   snap undochange "${2:?A}..${3:?B}" ;;
+    layout) sudo btrfs subvolume list / && sudo btrfs filesystem usage -h / ;;
+    *)      sed -n '2,9p' "$0"; exit 2 ;;
+esac

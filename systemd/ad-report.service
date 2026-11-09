@@ -1,0 +1,15 @@
+[Unit]
+Description=arch-distro daily health report
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/arch-distro/ad-report.sh
+# systemd creates /var/log/arch-distro owned by the dynamic user.
+LogsDirectory=arch-distro
+DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+CPUQuota=10%
+MemoryMax=32M

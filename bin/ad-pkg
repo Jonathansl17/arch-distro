@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# ad-pkg - look inside pacman (theme 6).
+#
+#   ad-pkg db              local database: where it lives, how many packages
+#   ad-pkg hooks           every ALPM hook on the system and its trigger
+#   ad-pkg deps PKG        dependency tree (pactree) and reverse deps
+#   ad-pkg owner FILE      which package owns FILE (reads the local db)
+#   ad-pkg log [N]         last N transactions from /var/log/pacman.log
+set -euo pipefail
+# shellcheck source=../lib/log.sh
+source "${AD_LIB:-/usr/lib/arch-distro}/log.sh"
+
+LOCAL_DB="/var/lib/pacman/local"
+HOOK_DIRS=("/usr/share/libalpm/hooks" "/etc/pacman.d/hooks")
+PACMAN_LOG="/var/log/pacman.log"
+DEFAULT_LOG_LINES=20
+TREE_DEPTH=2
+
+cmd_db() {
+    say "Local database: $LOCAL_DB"
+    echo "  packages installed : $(find "$LOCAL_DB" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+    echo "  explicitly installed: $(pacman -Qe | wc -l)"
+    echo "  orphans             : $(pacman -Qdtq 2>/dev/null | wc -l)"
+    echo "  each entry holds    : desc (metadata), files (owned paths), mtree"
+    echo "  signature level     : $(grep -E '^SigLevel' /etc/pacman.conf | head -n1)"
+}
+
+cmd_hooks() {
+    local dir hook
+    for dir in "${HOOK_DIRS[@]}"; do
+        [[ -d "$dir" ]] || continue
+        say "$dir"
+        for hook in "$dir"/*.hook; do
+            [[ -e "$hook" ]] || continue
+            printf '  %-40s %s %s\n' "$(basename "$hook")" \
+                "$(awk -F' *= *' '/^When/ {print $2}' "$hook")" \
+                "$(awk -F' *= *' '/^Target/ {printf "%s ", $2}' "$hook")"
+        done
+    done
+}
+
+cmd_deps() {
+    local pkg="${1:?usage: ad-pkg deps PKG}"
+    say "$pkg depends on (depth $TREE_DEPTH)"
+    pactree -d "$TREE_DEPTH" "$pkg"
+    say "packages that need $pkg"
+    pactree -r -d 1 "$pkg"
+}
+
+cmd_owner() {
+    local file="${1:?usage: ad-pkg owner FILE}"
+    pacman -Qo "$file"
+}
+
+cmd_log() {
+    grep -E '\[ALPM\] (installed|upgraded|removed)' "$PACMAN_LOG" \
+        | tail -n "${1:-$DEFAULT_LOG_LINES}"
+}
+
+case "${1:-db}" in
+    db)    cmd_db ;;
+    hooks) cmd_hooks ;;
+    deps)  cmd_deps "${2:-}" ;;
+    owner) cmd_owner "${2:-}" ;;
+    log)   cmd_log "${2:-}" ;;
+    *)     sed -n '2,9p' "$0"; exit 2 ;;
+esac

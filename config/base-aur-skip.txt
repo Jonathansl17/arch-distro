@@ -1,0 +1,7 @@
+# AUR packages removed from arch-config's list before running its installer.
+# arch-config itself is never modified: install.sh copies it to a temp dir and
+# filters this list there.
+
+# PKGBUILD needs the Cisco .deb downloaded by hand from netacad.com; an
+# unattended yay run fails and arch-config's `set -e` aborts the whole install.
+packettracer

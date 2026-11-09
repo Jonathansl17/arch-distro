@@ -1,0 +1,14 @@
+# Theme 4: time-based activation of ad-report.service.
+# List with: systemctl list-timers ad-report.timer
+[Unit]
+Description=Run the arch-distro health report daily and 5 min after boot
+
+[Timer]
+OnBootSec=5min
+OnCalendar=daily
+# Catch up on the next boot if the machine was off at the scheduled time.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

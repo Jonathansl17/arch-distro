@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# ad-svc - cgroup view of a systemd service (theme 4).
+# Reads the unit's cgroup files under /sys/fs/cgroup directly, so what you see
+# is what the kernel enforces, not what the unit file asks for.
+#
+#   ad-svc [UNIT]          status, limits and live usage (default ad-monitor)
+#   ad-svc crash [UNIT]    SIGKILL the main process and watch systemd restart it
+set -euo pipefail
+# shellcheck source=../lib/log.sh
+source "${AD_LIB:-/usr/lib/arch-distro}/log.sh"
+
+DEFAULT_UNIT="ad-monitor.service"
+CGROUP_ROOT="/sys/fs/cgroup"
+RESTART_WAIT_SECS=5
+
+cg_file() { cat "$CGROUP_ROOT$1/$2" 2>/dev/null || echo "n/a"; }
+
+show_unit() {
+    local unit="$1" cg
+    cg="$(systemctl show -P ControlGroup "$unit")"
+    [[ -n "$cg" ]] || die "$unit is not running (no cgroup)"
+    say "$unit"
+    printf '  %-16s %s\n' \
+        "state"      "$(systemctl show -P ActiveState "$unit")/$(systemctl show -P SubState "$unit")" \
+        "main pid"   "$(systemctl show -P MainPID "$unit")" \
+        "restarts"   "$(systemctl show -P NRestarts "$unit")" \
+        "cgroup"     "$cg" \
+        "cpu.max"    "$(cg_file "$cg" cpu.max)  (quota period, usec)" \
+        "memory.max" "$(cg_file "$cg" memory.max)" \
+        "memory.now" "$(cg_file "$cg" memory.current)" \
+        "oom kills"  "$(awk '$1 == "oom_kill" {print $2}' "$CGROUP_ROOT$cg/memory.events")" \
+        "pids"       "$(tr '\n' ' ' < "$CGROUP_ROOT$cg/cgroup.procs")"
+    printf '  %-16s %s\n' \
+        "cpu used"  "$(cpu_stat "$cg" usage_usec) usec" \
+        "throttled" "$(cpu_stat "$cg" nr_throttled) periods (cpu controller only)"
+}
+
+# cpu_stat CGROUP KEY -> value from cpu.stat, n/a when the key is absent
+# (nr_throttled only exists when the cpu controller is enabled for the unit).
+cpu_stat() {
+    awk -v k="$2" '$1 == k { v = $2 } END { print (v == "" ? "n/a" : v) }' \
+        "$CGROUP_ROOT$1/cpu.stat"
+}
+
+crash_unit() {
+    local unit="$1" before after
+    before="$(systemctl show -P NRestarts "$unit")"
+    say "Sending SIGKILL to $unit (restarts so far: $before)"
+    sudo systemctl kill --signal=SIGKILL --kill-whom=main "$unit"
+    sleep "$RESTART_WAIT_SECS"
+    after="$(systemctl show -P NRestarts "$unit")"
+    if (( after > before )); then
+        ok "systemd restarted $unit (restarts: $after)"
+    else
+        warn "no restart seen yet (restarts: $after)"
+    fi
+    journalctl -u "$unit" -n 6 --no-pager
+}
+
+case "${1:-}" in
+    -h|--help) sed -n '2,8p' "$0" ;;
+    crash)     crash_unit "${2:-$DEFAULT_UNIT}" ;;
+    *)         show_unit "${1:-$DEFAULT_UNIT}" ;;
+esac

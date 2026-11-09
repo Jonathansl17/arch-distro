@@ -1,0 +1,54 @@
+# Maintainer: Jonathan Sancho Loaiza
+# Local package (theme 6): every custom command, unit file, ALPM hook, udev
+# rule and modprobe file of arch-distro, owned by pacman so `pacman -Ql`
+# lists them and `pacman -R arch-distro-tools` removes them cleanly.
+# Built from the repo checkout, not from a downloaded tarball:
+#   cd pacman && makepkg -si
+
+pkgname=arch-distro-tools
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Custom commands, services and hooks of the arch-distro IC-6600 project"
+arch=('x86_64')
+license=('MIT')
+depends=('bash' 'glibc' 'systemd' 'pciutils' 'kmod' 'pacman-contrib' 'util-linux')
+optdepends=('snapper: ad-snap on btrfs roots'
+            'nftables: ad-sec firewall report'
+            'strace: tracing ad-ipc')
+makedepends=('gcc' 'make')
+# No separate -debug package: install.sh installs exactly one file.
+options=('!debug')
+
+_root="$startdir/.."
+_libdir="/usr/lib/arch-distro"
+
+build() {
+    make -C "$_root/src" BUILD="$srcdir/build"
+}
+
+check() {
+    make -C "$_root/src" BUILD="$srcdir/build" test
+}
+
+_install_dir() {
+    # _install_dir MODE SRC_GLOB DEST_DIR
+    local mode="$1" dest="$3" f
+    for f in $2; do
+        install -Dm"$mode" "$f" "$pkgdir$dest/$(basename "$f")"
+    done
+}
+
+package() {
+    _install_dir 755 "$srcdir/build/ad-*" /usr/bin
+    _install_dir 755 "$_root/bin/ad-*" /usr/bin
+    _install_dir 644 "$_root/lib/log.sh" "$_libdir"
+    _install_dir 644 "$_root/config/settings.sh" "$_libdir"
+    _install_dir 755 "$_root/pacman/hooks/*.sh" "$_libdir"
+    _install_dir 755 "$_root/udev/*.sh" "$_libdir"
+    _install_dir 755 "$_root/systemd/*.sh" "$_libdir"
+    _install_dir 644 "$_root/pacman/hooks/*.hook" /usr/share/libalpm/hooks
+    _install_dir 644 "$_root/systemd/*.service" /usr/lib/systemd/system
+    _install_dir 644 "$_root/systemd/*.timer" /usr/lib/systemd/system
+    _install_dir 644 "$_root/udev/*.rules" /usr/lib/udev/rules.d
+    _install_dir 644 "$_root/modprobe/*.conf" /usr/lib/modprobe.d
+}
