@@ -20,6 +20,9 @@ PERL_SCRIPT_DIRS=(/usr/bin/site_perl /usr/bin/vendor_perl /usr/bin/core_perl)
 # --- Logs ---
 LOG_DIR="$HOME/.local/state/arch-distro"
 SYSTEM_LOG_DIR="/var/log/arch-distro"
+# Where experiments/run-and-send.sh uploads the evidence tarball: the host on
+# the libvirt NAT bridge (virbr0). Override with EVIDENCE_UPLOAD_URL=...
+EVIDENCE_UPLOAD_URL="${EVIDENCE_UPLOAD_URL:-http://192.168.122.1:8765}"
 
 # --- Package built from this repo (PKGBUILD in pacman/) ---
 TOOLS_PKG_NAME="arch-distro-tools"
