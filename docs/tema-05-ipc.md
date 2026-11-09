@@ -77,8 +77,12 @@ SIGTERM pilot: exit 130, 0 zombies, 0 `ad-ipc` objects in `/dev/shm`.
 | --unsafe | 4 | 3785 | 3789 | 92 109 859 | 102 899 712 | 3 |
 | --unsafe | 5 | 3785 | 3781 | 87 923 869 | 102 899 712 | 3 |
 
-The same test ran in 3 earlier passes of `run-all.sh`: the mutex mode was
-exact in all 15 runs and `--unsafe` was wrong in all 15.
+The same test ran in 2 earlier passes of `run-all.sh` (18:55 and 19:16 UTC)
+with the same outcome: across the 3 passes the mutex mode was exact in 15 of
+15 runs and `--unsafe` was wrong in 15 of 15. A first pass at 18:29 UTC is
+left out: the mutex runs were exact again, but 4 of its 5 `--unsafe` runs
+ended with exit 130 (stopped by a signal) and the log does not say what sent
+it.
 
 **SIGTERM after 2 s** (slow run, `-s 40`): `ps --ppid` showed the 4
 consumers before the signal; then `exit=130`, `zombies=0`, `shm_left=0`
@@ -101,8 +105,8 @@ consumers before the signal; then `exit=130`, `zombies=0`, `shm_left=0`
 - `openat("/dev/shm/ad-ipc-<pid>", O_CREAT|O_EXCL, 0600)` is what
   `shm_open` becomes: POSIX shared memory is a file in the `/dev/shm` tmpfs.
   `O_EXCL` fails if the name exists, 0600 keeps other users out.
-- `ftruncate(3, 4240)` sizes it to the ring (16 slots, the three semaphores
-  and head/tail) before `mmap`.
+- `ftruncate(3, 4240)` sizes it to `struct ring` (16 path slots of 256 bytes,
+  the three semaphores, head/tail and the counters) before `mmap`.
 - `pipe2` creates the result pipe before the fork, so every child inherits
   both ends.
 - `clone(... SIGCHLD)` five times is `fork()`: 1 producer and 4 consumers.
@@ -113,10 +117,27 @@ consumers before the signal; then `exit=130`, `zombies=0`, `shm_left=0`
 
 ## 5. Interpretation
 
-Pilot: with the mutex every path is consumed exactly once. Without it two
-consumers can read the same `tail` before either advances it. One slot is
-then processed twice and the next one never. Results can be fewer (lost
-paths) or more (duplicates beat the losses) than the files, and the byte sum
-is off in both directions, which proves both effects happen. The semaphores
-`full`/`empty` alone are not enough: they count slots but do not make the
-read-modify-write of `tail` atomic.
+- **The mutex makes the result exact.** With it, every path is consumed
+  exactly once: 3785 results and 102 899 712 bytes, equal to what the
+  producer measured with `st_size`, in every run, in the pilot and in the VM.
+- **Without it the race shows up every time.** Two consumers can read the
+  same `tail` before either advances it. One slot is then processed twice
+  and the next one never. So results can be fewer (lost paths) or more
+  (duplicates beat the losses) than the files: 3781 to 3789 here. Run 2 is
+  the interesting one: 3785 results, the right count, yet 11 MB of bytes
+  missing. Lost and duplicated paths cancelled out in the count but not in
+  the bytes, which is why the program checks both.
+- **The semaphores alone are not enough.** `full` and `empty` count slots,
+  so they stop the producer from overrunning the ring and the consumers from
+  reading an empty slot. They do not make the read-modify-write of `tail`
+  atomic. That is the job of `mutex`, the binary semaphore around the
+  critical section. Turning it off is the only change in `--unsafe` (plus a
+  `sched_yield()` that widens the window so the race appears every run).
+- **No zombies.** A child that exits stays a zombie until its parent calls
+  `wait`. The strace shows the parent calling `wait4(-1, WNOHANG)` once per
+  child and stopping at `ECHILD`, and `reaped=5` confirms all 5 were
+  collected. After SIGTERM, `zombies=0` too: the parent forwards the signal
+  to its children, waits for them, and exits with 130.
+- **Clean shutdown.** `shm_left=0` after SIGTERM and the `unlink` at the end
+  of the strace show the shared memory object is removed in both paths. If
+  it were not, the 4240-byte object would stay in `/dev/shm` until reboot.

@@ -56,20 +56,93 @@ and `-sU --top-ports 50`.
 
 ## 4. Results
 
-Pending (VM). Paste `tests.txt` (10 lines PASS/FAIL), the interpreted
-ruleset and the nmap summary.
+VM `192.168.122.141`. Raw data: `results/tema-09/<ts>/tests.txt`, `raw.txt`.
+
+**Negative and positive checks** (`tests.txt`, last run 19:36 UTC):
 
 | Check | Expected | Got |
 |-------|----------|-----|
-| beto touch in /srv/proyecto | DENIED | |
-| ana restart sshd via sudo | DENIED | |
-| ana systemctl edit via sudo | DENIED | |
-| nmap TCP open ports | 22 only | |
+| ana writes in `/srv/proyecto` | OK | OK |
+| beto writes in `/srv/proyecto` | DENIED | DENIED |
+| beto lists `/srv/proyecto` | OK | OK |
+| beto deletes ana's file | DENIED | DENIED |
+| ana restarts `ad-monitor` via sudo | OK | OK |
+| ana restarts `sshd` via sudo | DENIED | DENIED |
+| ana `systemctl edit` via sudo (root shell) | DENIED | DENIED |
+| ana reads `/etc/shadow` | DENIED | DENIED |
+| beto uses sudo at all | DENIED | DENIED |
+| root login over ssh allowed | DENIED | DENIED |
+
+10/10 PASS in the last 3 runs (18:56, 19:16, 19:36 UTC). The first run
+(18:11 UTC) gave 7/10 because the security step had not been applied yet:
+`sudo: unknown user ana`.
+
+**ana's sudo rights** (`sudo -n -l` as ana):
+
+```text
+(root) NOPASSWD: /usr/bin/systemctl start ad-monitor.service,
+  /usr/bin/systemctl stop ad-monitor.service,
+  /usr/bin/systemctl restart ad-monitor.service,
+  /usr/bin/journalctl --no-pager -u ad-monitor.service, /usr/bin/nft list ruleset
+Defaults: timestamp_timeout=0, use_pty, secure_path=...
+```
+
+**ACL** (`getfacl -p /srv/proyecto`): owner `root`, group `proyecto`, flags
+`-s-` (setgid); `user:beto:r-x`, `group:proyecto:rwx`, `mask::rwx`,
+`other::---`, and the same entries as `default:` for new files.
+
+**Ruleset** (`nft list ruleset`, input chain):
+
+```text
+type filter hook input priority filter; policy drop;
+ct state established,related accept
+ct state invalid drop
+iif "lo" accept
+ip protocol icmp icmp type echo-request limit rate 5/second burst 5 packets accept
+ip6 nexthdr ipv6-icmp icmpv6 type { echo-request, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+tcp dport 22 ct state new limit rate 10/minute burst 5 packets accept
+limit rate 5/minute burst 5 packets log prefix "nft-drop: " level info
+```
+
+Forward chain: policy drop, no rules. Output chain: policy accept.
+Listening sockets (`ss -tlnp`): only `0.0.0.0:22` and `[::]:22`.
+
+**Remote scan from the host**: PENDING. Command:
+`experiments/exp-09-nmap-remote.sh 192.168.122.141` on the host.
 
 ## 5. Interpretation
 
-Pending. Explain each DENIED with the rule that caused it (ACL entry,
-sudoers alias, missing group). Explain why nmap shows "filtered" and not
-"closed" for the other ports: policy drop sends no RST. Explain why the
-`limit rate` on new SSH connections slows a brute-force attempt but does not
-affect an established session.
+- **ACL order decides beto's access.** beto is in `proyecto`, whose entry
+  grants `rwx`, yet he cannot write. POSIX ACL checks go in a fixed order:
+  owner, then named users, then groups, then other. The first matching
+  class wins, so `user:beto:r-x` applies and the `proyecto` entry is never
+  consulted for him. He can list (r-x) but not create or delete. ana, with
+  no named entry, falls to the group entries and gets `rwx`, masked by
+  `mask::rwx`. The setgid bit makes her files belong to `proyecto`, so the
+  rest of the group can work on them.
+- **beto cannot delete ana's file** because deleting is a write on the
+  directory, not on the file, and his effective rights on the directory
+  have no `w`.
+- **sudoers by exact command.** ana can run only the 5 listed command lines,
+  with those exact arguments. `systemctl restart sshd` and `systemctl edit`
+  do not match any line, so sudo refuses before running anything. That is
+  the point of not writing `systemctl *`: `systemctl edit` opens an editor
+  as root, and an editor can start a shell. `journalctl` is listed with
+  `--no-pager` for the same reason, because the pager (`less`) can run
+  `!sh`. `/etc/shadow` is mode 0600 root, and ana has no sudo line for it.
+  beto is not in `operadores`, so sudo has no line at all for him.
+- **Default deny in the firewall.** The input chain's policy is drop: any
+  packet that no rule accepts is discarded without an answer. The rules
+  accept only replies to connections the VM opened, loopback, limited ping,
+  the IPv6 neighbour discovery messages (without them IPv6 stops working),
+  and new SSH connections at most 10 per minute. `ct state invalid drop`
+  discards packets that do not belong to any valid connection state.
+- **Why the SSH limit does not hurt real use.** The limit applies only to
+  `ct state new`. Once a session is established its packets match the first
+  rule (`established,related`), so the limit never touches it. A brute-force
+  tool needs many new connections, and those are throttled to 10 per minute.
+- **What nmap is expected to show.** With policy drop, a closed port sends
+  nothing back, not even a TCP RST, so nmap reports the other ports as
+  `filtered` instead of `closed`. Only 22/tcp should be `open`. The pending
+  scan has to confirm this; `ss` already shows 22 is the only listening TCP
+  port.

@@ -54,18 +54,55 @@ to continue to the default target.
 
 ## 4. Results
 
-Pending (VM).
+VM, UEFI (OVMF), systemd-boot. Kernel command line in every boot:
+`root=PARTUUID=... zswap.enabled=0 rootflags=subvol=@ rw rootfstype=btrfs
+console=uart,io,0x3f8 console=tty0`. Raw data: `results/tema-07/boots.csv`
+and `results/tema-07/before/<ts>-{time,blame,chain,plot}`.
 
-| Label | n | firmware (s) | loader (s) | kernel (s) | initrd (s) | userspace (s) |
-|-------|---|--------------|------------|------------|------------|---------------|
-| before | 3 | | | | | |
-| after | 3 | | | | | |
+| Label | boot | firmware (s) | loader (s) | kernel (s) | initrd (s) | userspace (s) | total (s) |
+|-------|------|--------------|------------|------------|------------|---------------|-----------|
+| before | b8e3a775 | n/a | n/a | 1.571 | n/a | 1.711 | 3.283 |
+| before | 8e5cb3a4 | n/a | n/a | 1.713 | n/a | 2.075 | 3.789 |
+| before | 74c1b61a | n/a | n/a | 1.549 | n/a | 1.913 | 3.462 |
+| **before, mean** | 3 | n/a | n/a | **1.611** | n/a | **1.900** | **3.511** |
+| after | | PENDING | | | | | |
 
-Add `ad-boot blame` top 10 and the critical chain of one boot.
+**Blame, top 5** (last boot, 74c1b61a): `dev-vda2.device` 345 ms,
+`ad-report.service` 238 ms, `systemd-udev-trigger.service` 170 ms,
+`NetworkManager.service` 147 ms, `user@1000.service` 138 ms.
+
+**Critical chain** (same boot):
+
+```text
+graphical.target @1.913s
+└─multi-user.target @1.912s
+  └─getty.target @1.912s
+    └─serial-getty@ttyS0.service @1.912s
+      └─systemd-user-sessions.service @1.899s +9ms
+        └─network.target @1.890s
+          └─NetworkManager.service @1.742s +147ms
+            └─network-pre.target @1.741s
+```
 
 ## 5. Interpretation
 
-Pending. Name the stage the optimization targets and check that only that
-column moved. Note: `loader` includes the menu timeout. In a VM, `firmware`
-includes OVMF's own init and may vary between boots. Compare against the
-spread of the 3 runs before claiming an improvement.
+- **Missing stages.** `systemd-analyze` only printed kernel and userspace.
+  Firmware and loader times come from EFI variables that the boot loader
+  writes; this VM's boot did not provide them, so they are reported as n/a,
+  not as 0. initrd is missing because the initramfs is built with the
+  busybox `udev` hook, not the `systemd` hook. Without systemd inside the
+  initramfs nobody records when it ended, so its time is counted inside
+  "kernel".
+- **Spread before optimizing.** Kernel varied between 1.549 and 1.713 s and
+  userspace between 1.711 and 2.075 s across 3 boots. An "after" result has
+  to move the mean by more than that spread (about 0.16 s and 0.36 s) to
+  count as an improvement.
+- **What the userspace numbers say.** `graphical.target` waits for
+  `network.target`, which waits for NetworkManager (about 150 ms), so the
+  network is on the critical path. `dev-vda2.device` (345 ms) is the time
+  until udev announced the root disk. `ad-report.service` shows up in blame
+  because its timer has `Persistent=true`: a run missed while the VM was off
+  is caught up at boot. It is not on the critical chain, so it costs CPU
+  during boot but does not delay the target.
+- PENDING: the "after" boots, the stage the optimization targets, and
+  whether only that column moved.
