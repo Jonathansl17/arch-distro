@@ -23,6 +23,11 @@ trap 'kill "$keepalive" 2>/dev/null' EXIT
 failed=()
 for exp in "${EXPERIMENTS[@]}"; do
     say "===== $exp ====="
+    # Theme 3 compares a btrfs root against ext4: nothing to measure on ext4.
+    if [[ "$exp" == exp-03-* && "$(findmnt -no FSTYPE /)" != "btrfs" ]]; then
+        warn "root is not btrfs: skipping $exp (theme 3 not applicable)"
+        continue
+    fi
     args=()
     [[ "$exp" == exp-00-capa1 ]] && args=("$member")
     if ! "$EXP_REPO/experiments/$exp.sh" "${args[@]}"; then

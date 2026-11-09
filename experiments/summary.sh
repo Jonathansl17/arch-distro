@@ -44,6 +44,7 @@ t2() {
 
 t3() {
     local d r; d="$(latest tema-03)"; h "T3 fio, avg of runs (MiB/s / IOPS)   btrfs | ext4"
+    [[ "$(findmnt -no FSTYPE /)" == "btrfs" ]] || { echo "  skipped: root is not btrfs"; return; }
     [[ -n "$d" ]] || { missing; return; }
     awk -F, -v k="$MIB_PER_KIB" 'NR > 1 { w = ($2 ~ /write/); bw = w ? $6 : $4; io = w ? $7 : $5
             b[$1, $2] += bw; i[$1, $2] += io; n[$1, $2]++; jobs[$2] = 1 }
