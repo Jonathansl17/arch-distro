@@ -20,6 +20,10 @@ sudo -v || die "sudo is required"
 keepalive=$!
 trap 'kill "$keepalive" 2>/dev/null' EXIT
 
+dest="$EXP_REPO/evidence/$member"
+exp_logs="$dest/run-logs"
+mkdir -p "$exp_logs"
+
 failed=()
 for exp in "${EXPERIMENTS[@]}"; do
     say "===== $exp ====="
@@ -30,18 +34,18 @@ for exp in "${EXPERIMENTS[@]}"; do
     fi
     args=()
     [[ "$exp" == exp-00-capa1 ]] && args=("$member")
-    if ! "$EXP_REPO/experiments/$exp.sh" "${args[@]}"; then
-        warn "$exp failed, continuing"
+    # Each run is also kept in run-logs/ so a failure survives the final clear.
+    if ! "$EXP_REPO/experiments/$exp.sh" "${args[@]}" 2>&1 | tee "$exp_logs/$exp.log"; then
+        warn "$exp failed, continuing (see $exp_logs/$exp.log)"
         failed+=("$exp")
     fi
 done
 say "===== exp-07-boot (this boot) ====="
-"$EXP_REPO/experiments/exp-07-boot.sh" before || failed+=("exp-07-boot")
+"$EXP_REPO/experiments/exp-07-boot.sh" before 2>&1 | tee "$exp_logs/exp-07-boot.log" \
+    || failed+=("exp-07-boot")
 
-dest="$EXP_REPO/evidence/$member"
-mkdir -p "$dest"
 cp -a "$EXP_REPO/results/." "$dest/"
 cp -a "$LOG_DIR"/install-*.log "$dest/" 2>/dev/null || warn "no install logs in $LOG_DIR"
 clear
 "$EXP_REPO/experiments/summary.sh" "$member" | tee "$dest/summary.txt"
-(( ${#failed[@]} == 0 )) || warn "failed: ${failed[*]}"
+(( ${#failed[@]} == 0 )) || warn "failed: ${failed[*]} (logs: $exp_logs)"
