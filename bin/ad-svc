@@ -28,18 +28,18 @@ show_unit() {
         "cpu.max"    "$(cg_file "$cg" cpu.max)  (quota period, usec)" \
         "memory.max" "$(cg_file "$cg" memory.max)" \
         "memory.now" "$(cg_file "$cg" memory.current)" \
-        "oom kills"  "$(awk '$1 == "oom_kill" {print $2}' "$CGROUP_ROOT$cg/memory.events")" \
-        "pids"       "$(tr '\n' ' ' < "$CGROUP_ROOT$cg/cgroup.procs")"
+        "oom kills"  "$(cg_key "$cg" memory.events oom_kill)" \
+        "pids"       "$(cg_file "$cg" cgroup.procs | tr '\n' ' ')"
     printf '  %-16s %s\n' \
-        "cpu used"  "$(cpu_stat "$cg" usage_usec) usec" \
-        "throttled" "$(cpu_stat "$cg" nr_throttled) periods (cpu controller only)"
+        "cpu used"  "$(cg_key "$cg" cpu.stat usage_usec) usec" \
+        "throttled" "$(cg_key "$cg" cpu.stat nr_throttled) periods (cpu controller only)"
 }
 
-# cpu_stat CGROUP KEY -> value from cpu.stat, n/a when the key is absent
-# (nr_throttled only exists when the cpu controller is enabled for the unit).
-cpu_stat() {
-    awk -v k="$2" '$1 == k { v = $2 } END { print (v == "" ? "n/a" : v) }' \
-        "$CGROUP_ROOT$1/cpu.stat"
+# cg_key CGROUP FILE KEY -> value of KEY in a flat-keyed cgroup file, n/a when
+# the key is absent (nr_throttled needs the cpu controller) or the file is gone
+# (the unit is between a crash and its restart, so systemd removed the cgroup).
+cg_key() {
+    cg_file "$1" "$2" | awk -v k="$3" '$1 == k { v = $2 } END { print (v == "" ? "n/a" : v) }'
 }
 
 crash_unit() {
@@ -49,7 +49,9 @@ crash_unit() {
     sudo systemctl kill --signal=SIGKILL --kill-whom=main "$unit"
     sleep "$RESTART_WAIT_SECS"
     after="$(systemctl show -P NRestarts "$unit")"
-    if (( after > before )); then
+    if [[ "$(systemctl show -P ActiveState "$unit")" != "active" ]]; then
+        warn "$unit is not active after the kill (start limit hit?)"
+    elif (( after > before )); then
         ok "systemd restarted $unit (restarts: $after)"
     else
         warn "no restart seen yet (restarts: $after)"

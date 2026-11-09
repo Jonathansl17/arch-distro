@@ -46,6 +46,8 @@ run_job() {
         --bs="$bs" --size="$FILE_SIZE" --runtime="$RUNTIME_SECS" --time_based \
         --ioengine=io_uring --iodepth="$IODEPTH" --direct=1 --end_fsync=1 \
         --group_reporting)"
+    # Each job leaves a FILE_SIZE file; four of them do not fit in IMG_SIZE.
+    rm -f "$target/$name".*
     echo "$line" >> "$5.raw"
     echo "$fs,$name,$4,$(awk -F';' "$TERSE_AWK" <<< "$line")" | tee -a "$5"
 }

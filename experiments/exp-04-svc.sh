@@ -21,8 +21,16 @@ PERCENT=100
 set_env() {
     printf 'INTERVAL_SECS=10\nLOAD_WORKERS=%s\nLOAD_MEM_MIB=%s\n' "$1" "$2" \
         | sudo tee "$MONITOR_ENV_FILE" >/dev/null
-    sudo systemctl restart "$UNIT"
+    restart_unit
     sleep "$SETTLE_SECS"
+}
+
+# restart_unit -> clean restart. The memory step makes systemd restart the unit
+# after every OOM kill, which can exhaust StartLimitBurst; reset-failed clears
+# that counter so the next step does not start from start-limit-hit.
+restart_unit() {
+    sudo systemctl reset-failed "$UNIT"
+    sudo systemctl restart "$UNIT"
 }
 
 cpu_usec() {
@@ -42,7 +50,7 @@ measure_quota() {
 dir="$(results_dir tema-04)"
 original="$(mktemp)"
 sudo cp "$MONITOR_ENV_FILE" "$original"
-trap 'sudo cp "$original" "$MONITOR_ENV_FILE"; sudo systemctl restart "$UNIT"; rm -f "$original"' EXIT
+trap 'sudo cp "$original" "$MONITOR_ENV_FILE"; restart_unit; rm -f "$original"' EXIT
 
 run_logged "$dir/1-cgroup.txt" systemctl show "$UNIT" -p CPUQuotaPerSecUSec -p MemoryMax \
     -p Restart -p RestartUSec -p After -p Wants
