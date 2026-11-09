@@ -61,6 +61,9 @@ setup_firewall() {
 setup_sshd() {
     if install_root "$REPO_DIR/security/sshd_config.d/10-arch-distro.conf" \
         /etc/ssh/sshd_config.d/10-arch-distro.conf 644; then
+        # A fresh install has no host keys until sshd first starts, and
+        # `sshd -t` fails without them. -A only creates the missing ones.
+        sudo ssh-keygen -A
         sudo sshd -t || die "sshd config does not validate"
         sudo systemctl try-restart sshd.service
     fi
