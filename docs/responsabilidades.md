@@ -18,9 +18,10 @@ without help.
 
 The statement asks for 7 of the 9 themes. All 9 are implemented. Before the
 final delivery the team states here which 7 are submitted for grading, picking
-the ones with complete measured evidence.
+the ones with the most complete evidence.
 
-**Themes submitted for grading:** pending.
+**Themes submitted for grading:** 1, 2, 3, 4, 5, 6 and 8. Themes 7 and 9 are
+implemented and documented too.
 
 ## Capa 1 and Capa 3
 

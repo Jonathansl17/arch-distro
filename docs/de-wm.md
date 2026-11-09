@@ -43,18 +43,24 @@ would count shared libraries once per process and inflate the total.
 
 ## Results
 
-Pending: paste the average of the 5 samples per session from
-`results/dewm/summary.csv`.
+Average of 5 samples per session, one terminal open, 2 min idle:
 
 | Session | Used RAM (MiB) | User processes | User PSS (MiB) |
 |---------|----------------|----------------|----------------|
-| bspwm | | | |
-| XFCE 4 | | | |
+| bspwm | 486 | 13 | 96 |
+| XFCE 4 | 742 | 31 | 287 |
+| difference | +256 | +18 | +191 |
 
 ## Interpretation
 
-Pending, to be filled once the data is in. Expected: XFCE starts xfwm4,
-xfce4-panel, xfdesktop, xfsettingsd, xfce4-power-manager and a notification
-daemon, so it should have more processes and more PSS than bspwm + sxhkd +
-lemonbar. Check whether the difference in `free` (system-wide) matches the
-difference in PSS (session only). Kernel caches and buffers explain any gap.
+- XFCE starts xfwm4, xfce4-panel, xfdesktop, xfsettingsd,
+  xfce4-power-manager, a notification daemon and their helpers, so it
+  runs more than twice the processes of bspwm + sxhkd + lemonbar and about
+  three times their PSS.
+- The system-wide difference in `free` (+256 MiB) is larger than the session
+  PSS difference (+191 MiB). The gap is memory that is not owned by the
+  user's processes: page cache for the extra libraries and icons XFCE reads,
+  and kernel buffers. PSS only counts pages mapped by the session.
+- For this project the lower footprint matters: on a 4 GB VM (the suggested
+  minimum) about 250 MiB more at idle is memory the experiments of theme 2
+  could not use.

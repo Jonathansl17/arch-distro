@@ -65,7 +65,14 @@ and `results/tema-07/before/<ts>-{time,blame,chain,plot}`.
 | before | 8e5cb3a4 | n/a | n/a | 1.713 | n/a | 2.075 | 3.789 |
 | before | 74c1b61a | n/a | n/a | 1.549 | n/a | 1.913 | 3.462 |
 | **before, mean** | 3 | n/a | n/a | **1.611** | n/a | **1.900** | **3.511** |
-| after | | PENDING | | | | | |
+| after | 1 | n/a | n/a | 1.214 | n/a | 1.874 | 3.088 |
+| after | 2 | n/a | n/a | 1.187 | n/a | 1.951 | 3.138 |
+| after | 3 | n/a | n/a | 1.233 | n/a | 1.902 | 3.135 |
+| **after, mean** | 3 | n/a | n/a | **1.211** | n/a | **1.909** | **3.120** |
+
+Optimization: `quiet` added and `console=uart,io,0x3f8` removed from the
+kernel command line (no kernel messages printed to the emulated serial port).
+
 
 **Blame, top 5** (last boot, 74c1b61a): `dev-vda2.device` 345 ms,
 `ad-report.service` 238 ms, `systemd-udev-trigger.service` 170 ms,
@@ -104,5 +111,14 @@ graphical.target @1.913s
   because its timer has `Persistent=true`: a run missed while the VM was off
   is caught up at boot. It is not on the critical chain, so it costs CPU
   during boot but does not delay the target.
-- PENDING: the "after" boots, the stage the optimization targets, and
-  whether only that column moved.
+- **The optimization targets the kernel stage**.
+  Every kernel message was printed to an emulated 16550 serial port, which
+  QEMU services one byte at a time, so a verbose kernel spends real time
+  waiting on the console. With `quiet` and without the serial console the
+  kernel stage drops from 1.611 to 1.211 s on average, a 0.40 s change, larger
+  than the 0.16 s spread of the "before" boots. Userspace stays the same
+  (1.900 vs 1.909 s, inside its 0.36 s spread), which is what should happen,
+  since the change does not touch anything systemd runs. Total: 3.511 →
+  3.120 s.
+- Trade-off: without the serial console a kernel panic is no longer visible
+  on `ttyS0`; it only shows on the graphical console.

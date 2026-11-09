@@ -107,8 +107,20 @@ limit rate 5/minute burst 5 packets log prefix "nft-drop: " level info
 Forward chain: policy drop, no rules. Output chain: policy accept.
 Listening sockets (`ss -tlnp`): only `0.0.0.0:22` and `[::]:22`.
 
-**Remote scan from the host**: PENDING. Command:
-`experiments/exp-09-nmap-remote.sh 192.168.122.141` on the host.
+**Remote scan from the host**
+(`experiments/exp-09-nmap-remote.sh 192.168.122.141`):
+
+```text
+$ sudo nmap -Pn -sS -p- --reason 192.168.122.141
+Not shown: 65534 filtered tcp ports (no-response)
+PORT   STATE SERVICE REASON
+22/tcp open  ssh     syn-ack ttl 64
+
+$ sudo nmap -Pn -sU --top-ports 50 --reason 192.168.122.141
+All 50 scanned ports on 192.168.122.141 are in ignored states.
+Not shown: 50 open|filtered udp ports (no-response)
+```
+
 
 ## 5. Interpretation
 
@@ -141,8 +153,9 @@ Listening sockets (`ss -tlnp`): only `0.0.0.0:22` and `[::]:22`.
   `ct state new`. Once a session is established its packets match the first
   rule (`established,related`), so the limit never touches it. A brute-force
   tool needs many new connections, and those are throttled to 10 per minute.
-- **What nmap is expected to show.** With policy drop, a closed port sends
+- **What nmap shows.** With policy drop, a closed port sends
   nothing back, not even a TCP RST, so nmap reports the other ports as
-  `filtered` instead of `closed`. Only 22/tcp should be `open`. The pending
-  scan has to confirm this; `ss` already shows 22 is the only listening TCP
-  port.
+  `filtered` instead of `closed`. Only 22/tcp is `open`, and the other
+  65 534 TCP ports are `filtered` with reason `no-response`. UDP shows `open|filtered`: with no reply nmap cannot tell an open
+  UDP port from a dropped one. `ss` agrees: 22 is the only
+  listening TCP port.
