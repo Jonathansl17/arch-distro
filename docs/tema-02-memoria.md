@@ -36,8 +36,9 @@
 experiments/exp-02-mem.sh
 ```
 
-- Load: `stress-ng --vm 2 --vm-bytes 65% --vm-keep --timeout 60s`, about
-  130% of the available memory.
+- Load: `stress-ng --vm 2 --vm-bytes 130% --vm-keep --timeout 60s`.
+  stress-ng splits the percentage across the workers, so the total is 130%
+  of the available memory (65% each).
 - Sampling, both at 1 s: `vmstat -w 1` (si/so columns, KiB/s) and
   `ad-mem --csv -i 1000` (fault rates, zram ratio).
 - Run 1 "with": zram (prio 100) + swap file (prio 10).

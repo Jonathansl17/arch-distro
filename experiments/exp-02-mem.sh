@@ -11,7 +11,8 @@ require stress-ng vmstat ad-mem
 DURATION_SECS=60
 SAMPLE_SECS=1
 VM_WORKERS=2
-VM_BYTES_PER_WORKER="65%"   # 2 x 65% of available RAM = 130%: forces swapping
+VM_BYTES_TOTAL="130%"   # stress-ng splits a % across the workers: 130% of
+                        # available RAM in total, more than fits, forces swapping
 ZRAM_DEV="/dev/zram0"
 
 run_once() {
@@ -24,7 +25,7 @@ run_once() {
         > "$dir/$label-admem.csv" &
     local am=$!
     run_logged "$dir/$label-stress.txt" stress-ng --vm "$VM_WORKERS" \
-        --vm-bytes "$VM_BYTES_PER_WORKER" --vm-keep --timeout "${DURATION_SECS}s" \
+        --vm-bytes "$VM_BYTES_TOTAL" --vm-keep --timeout "${DURATION_SECS}s" \
         --metrics-brief
     wait "$vm" "$am"
     sudo dmesg | grep -iE 'out of memory|oom-kill|killed process' \
