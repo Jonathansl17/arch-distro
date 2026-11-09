@@ -44,6 +44,6 @@ kill -TERM "$parent"
 rc=0
 wait "$parent" || rc=$?
 echo "ad-ipc exit=$rc (130 = terminated by SIGTERM)" >> "$dir/3-sigterm.txt"
-run_logged "$dir/3-sigterm.txt" bash -c "ps -eo pid,stat,comm | awk '\$2 ~ /^Z/' | grep -c . || true"
-run_logged "$dir/3-sigterm.txt" bash -c "ls /dev/shm | grep -c ad-ipc || true"
+echo "zombies=$(ps -eo stat= | grep -c '^Z' || :)" >> "$dir/3-sigterm.txt"
+echo "shm_left=$(find /dev/shm -name 'ad-ipc-*' | wc -l)" >> "$dir/3-sigterm.txt"
 ok "results in $dir"

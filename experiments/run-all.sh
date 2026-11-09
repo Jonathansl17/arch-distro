@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Runs every unattended experiment in order and copies the output to
-# evidence/<member>/, which IS versioned (results/ is not), so it can be
-# pushed and reviewed from another machine. About 30 minutes.
+# Runs every unattended experiment once, in order, copies the output to
+# evidence/<member>/ and ends with a one-screen summary to screenshot.
+# About 30 minutes.
 #   experiments/run-all.sh jonathan
 # Not included (need a human or a reboot): exp-07 after more boots,
 # exp-00-dewm (needs a second desktop session), exp-09-nmap-remote (runs
@@ -37,5 +37,6 @@ dest="$EXP_REPO/evidence/$member"
 mkdir -p "$dest"
 cp -a "$EXP_REPO/results/." "$dest/"
 cp -a "$LOG_DIR"/install-*.log "$dest/" 2>/dev/null || warn "no install logs in $LOG_DIR"
-ok "evidence copied to $dest"
+clear
+"$EXP_REPO/experiments/summary.sh" "$member" | tee "$dest/summary.txt"
 (( ${#failed[@]} == 0 )) || warn "failed: ${failed[*]}"
