@@ -91,8 +91,10 @@ Each one prints its usage with `-h` or with an unknown subcommand.
 
 ## Keyboard shortcuts
 
-See [docs/cheatsheet.md](docs/cheatsheet.md). They come from arch-config's
-`sxhkdrc` and this repo does not modify them.
+See [docs/cheatsheet.md](docs/cheatsheet.md). They are arch-config's own
+`sxhkdrc` keys, unmodified: the mandatory actions use its keys (`Ctrl + <`
+terminal, `Ctrl + Q` close, `Super + N` desktops) and 3 existing shortcuts are
+assigned to each member.
 
 ## Repository map
 

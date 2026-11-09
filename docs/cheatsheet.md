@@ -6,15 +6,17 @@ Designer of every shortcut: Jonathan Sancho Loaiza.
 
 ## Mandatory shortcuts (statement A.5)
 
-| Required | Status in this distro |
-|----------|-----------------------|
-| Super + Enter → terminal | **Not bound.** The terminal opens with `Ctrl + <` |
-| Super + W / Super + Q → close window | **Not bound.** `Super + W` opens a Brave web app. Windows close with `Ctrl + Q` |
-| Super + D → launcher | **Not bound.** `Super + D` opens Discord. There is no rofi/dmenu |
-| Super + 1..9 → workspace | Bound (`Super + 1..0`) |
+The distro keeps arch-config's own keys for the mandatory actions.
 
-The team decided to keep arch-config's shortcuts as they are. The rubric
-treats the first three as mandatory, so this table states the gap openly.
+| Required action | Key in this distro | Command |
+|-----------------|--------------------|---------|
+| Open terminal | `Ctrl + <` | `alacritty-cwd` (opens in the focused window's directory) |
+| Close active window | `Ctrl + Q` | `bspc node -c` |
+| Application launcher | none | there is no rofi/dmenu. Apps have direct keys (see below) |
+| Switch workspace | `Super + 1..9, 0` | `bspc desktop -f N` |
+
+The statement names `Super + Enter`, `Super + W/Q` and `Super + D`. These
+keys are bound differently here (see the tables below).
 
 ## Windows and terminals
 
@@ -58,7 +60,22 @@ treats the first three as mandatory, so this table states the gap openly.
 | `Super + F1 / F2 / F3` | Mute / volume down / volume up (PipeWire `wpctl`) |
 | `Super + F4 / F7 / F8` | Mic mute / down / up |
 
-## Free shortcuts per member (statement: exactly 3 each)
+## Free shortcuts per member (3 each)
 
-Not defined. The team kept arch-config's keybindings untouched, so no
-shortcut calls the `ad-*` commands yet.
+All of them come from arch-config and were designed by Jonathan Sancho Loaiza.
+Each member presents and explains three.
+
+| Member | Keys | What it does | OS interface |
+|--------|------|--------------|--------------|
+| Jonathan Sancho Loaiza | `Print` | area screenshot saved to `~/screenshots` and copied to the clipboard | X selections (`clipcopy`) |
+| Jonathan Sancho Loaiza | `Super + L` | lock the screen | PAM authentication (`slock`) |
+| Jonathan Sancho Loaiza | `Alt + Tab` | toggle between the last two windows | bspwm UNIX socket (`bspc`) |
+| Magdaleno Gómez Díaz | `Ctrl + Shift + A / D / W / S` | split and open a terminal in the same directory | `/proc/<pid>/cwd` (`alacritty-cwd`) |
+| Magdaleno Gómez Díaz | `Super + Ctrl + 1..9, 0` | move every window of the desktop to desktop N | bspwm UNIX socket |
+| Magdaleno Gómez Díaz | `Ctrl + .` | toggle fullscreen | bspwm UNIX socket |
+| Jennifer López Miranda | `Super + F1 / F2 / F3` | output mute / volume down / up | PipeWire (`wpctl`) |
+| Jennifer López Miranda | `Super + F4 / F7 / F8` | microphone mute / down / up | PipeWire (`wpctl`) |
+| Jennifer López Miranda | `Ctrl + Alt + ← →` | send window to the other monitor | RandR outputs via bspwm |
+
+The statement also asks for at least one shortcut per member that runs an
+`ad-*` command or a Capa 2 function. These keys do not do that yet.
