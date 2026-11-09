@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Capa 1 evidence: what the statement asks each member to show about the
 # manual install. Run once per member after the first boot:
-#   ./exp-00-capa1.sh jonathan
+#   ./exp-00-capa1.sh [NAME]   (default: $USER)
 # Output: logs/<member>/capa1-evidence.txt (versioned, unlike results/)
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-member="${1:?usage: $0 MEMBER_NAME}"
+member="${1:-$USER}"   # optional: defaults to the login name
 out_dir="$EXP_REPO/logs/$member"
 out="$out_dir/capa1-evidence.txt"
 mkdir -p "$out_dir"

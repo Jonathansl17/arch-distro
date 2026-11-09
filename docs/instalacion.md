@@ -176,7 +176,7 @@ nmcli device status                    # network up via NetworkManager
 sudo pacman -Syu
 git clone https://github.com/Jonathansl17/arch-distro.git
 cd arch-distro
-experiments/exp-00-capa1.sh <name>     # Capa 1 evidence -> logs/<name>/
+experiments/exp-00-capa1.sh [name]     # Capa 1 evidence -> logs/<name>/ (default $USER)
 ./install.sh                           # log -> ~/.local/state/arch-distro/
 cp ~/.local/state/arch-distro/install-*.log logs/<name>/
 ./install.sh                           # second run: idempotency proof

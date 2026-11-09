@@ -2,14 +2,14 @@
 # Runs every unattended experiment once, in order, copies the output to
 # evidence/<member>/ and ends with a one-screen summary to screenshot.
 # About 30 minutes.
-#   experiments/run-all.sh jonathan
+#   experiments/run-all.sh [NAME]   (default: $USER)
 # Not included (need a human or a reboot): exp-07 after more boots,
 # exp-00-dewm (needs a second desktop session), exp-09-nmap-remote (runs
 # from another machine). exp-08 waits 30 s for a USB stick and goes on.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-member="${1:?usage: $0 MEMBER_NAME}"
+member="${1:-$USER}"   # optional: defaults to the login name
 SUDO_REFRESH_SECS=60
 EXPERIMENTS=(exp-00-capa1 exp-01-sched exp-02-mem exp-03-fs exp-03-rollback
              exp-04-svc exp-05-ipc exp-06-pkg exp-08-dev exp-09-sec)

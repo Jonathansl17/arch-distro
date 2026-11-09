@@ -2,12 +2,12 @@
 # Runs every experiment (run-all.sh) and uploads evidence/<member>/ as a
 # tarball to EVIDENCE_UPLOAD_URL, so the results reach the host without
 # screenshots. The upload happens even if some experiments failed.
-#   experiments/run-and-send.sh jonathan
+#   experiments/run-and-send.sh [NAME]   (default: $USER)
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 require tar curl
 
-member="${1:?usage: $0 MEMBER_NAME}"
+member="${1:-$USER}"   # optional: defaults to the login name
 evidence="evidence/$member"
 
 rc=0
