@@ -15,6 +15,13 @@ USB_LOG="/var/log/arch-distro/usb-events.log"
 DEFAULT_TOP=10
 USB_LOG_LINES=15
 
+# cmd_usb -> last USB events. ad-report.service uses DynamicUser=, so systemd
+# keeps the logs directory under /var/log/private (mode 0700): read it as root.
+cmd_usb() {
+    sudo test -f "$USB_LOG" || { warn "no USB event logged yet ($USB_LOG)"; return 0; }
+    sudo tail -n "$USB_LOG_LINES" "$USB_LOG"
+}
+
 cmd_pci() {
     local dev cls drv
     printf '%-14s %-8s %-14s %s\n' "SLOT" "CLASS" "DRIVER" "DEVICE"
@@ -68,6 +75,6 @@ case "${1:-pci}" in
     irq)     cmd_irq "${2:-}" ;;
     irqdiff) shift; cmd_irqdiff "$@" ;;
     mod)     cmd_mod "${2:-}" ;;
-    usb)     tail -n "$USB_LOG_LINES" "$USB_LOG" ;;
+    usb)     cmd_usb ;;
     *)       sed -n '2,9p' "$0"; exit 2 ;;
 esac

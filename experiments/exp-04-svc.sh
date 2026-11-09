@@ -47,6 +47,14 @@ measure_quota() {
         'BEGIN { printf "unit CPU over %ds: %.1f%% of one CPU (quota 20%%)\n", w, d / (w * u) * p }'
 }
 
+# count_memcg_kills EPOCH -> cgroup OOM kills inside UNIT since EPOCH
+count_memcg_kills() {
+    local n
+    n="$(journalctl -k --no-pager -q --since "@$1" \
+        | grep -c "Memory cgroup out of memory" || true)"
+    echo "cgroup OOM kills in $UNIT during this step: $n"
+}
+
 dir="$(results_dir tema-04)"
 original="$(mktemp)"
 sudo cp "$MONITOR_ENV_FILE" "$original"
@@ -63,10 +71,13 @@ run_logged "$dir/2-quota.txt" measure_quota
 run_logged "$dir/2-quota.txt" ad-svc "$UNIT"
 
 say "Memory limit ($MEM_MIB MiB requested, MemoryMax=64M)"
+mem_since="$(date +%s)"
 set_env 0 "$MEM_MIB"
 sleep "$SETTLE_SECS"
 run_logged "$dir/3-memory.txt" ad-svc "$UNIT"
-run_logged "$dir/3-memory.txt" journalctl -k --no-pager -g 'oom' -n 5
+# memory.events resets every time systemd recreates the cgroup on restart, so
+# the kills of this step are counted from the kernel log instead.
+run_logged "$dir/3-memory.txt" count_memcg_kills "$mem_since"
 
 say "Restart after a provoked failure"
 set_env 0 0

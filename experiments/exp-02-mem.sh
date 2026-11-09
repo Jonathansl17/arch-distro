@@ -16,7 +16,8 @@ VM_BYTES_TOTAL="130%"   # stress-ng splits a % across the workers: 130% of
 ZRAM_DEV="/dev/zram0"
 
 run_once() {
-    local dir="$1" label="$2"
+    local dir="$1" label="$2" since
+    since="$(date +%s)"
     say "Run '$label': $(swapon --show=NAME,PRIO --noheadings | tr '\n' ' ')"
     swapon --show > "$dir/$label-swaps.txt"
     vmstat -w "$SAMPLE_SECS" "$((DURATION_SECS + 5))" > "$dir/$label-vmstat.txt" &
@@ -28,7 +29,10 @@ run_once() {
         --vm-bytes "$VM_BYTES_TOTAL" --vm-keep --timeout "${DURATION_SECS}s" \
         --metrics-brief
     wait "$vm" "$am"
-    sudo dmesg | grep -iE 'out of memory|oom-kill|killed process' \
+    # Only this run's kernel messages: plain dmesg also returns OOM kills from
+    # earlier experiments in the same boot.
+    sudo journalctl -k --no-pager -q --since "@$since" \
+        | grep -iE 'out of memory|oom-kill|killed process' \
         > "$dir/$label-oom.txt" || echo "no OOM kill" > "$dir/$label-oom.txt"
 }
 

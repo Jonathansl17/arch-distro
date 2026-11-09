@@ -28,7 +28,7 @@ show_unit() {
         "cpu.max"    "$(cg_file "$cg" cpu.max)  (quota period, usec)" \
         "memory.max" "$(cg_file "$cg" memory.max)" \
         "memory.now" "$(cg_file "$cg" memory.current)" \
-        "oom kills"  "$(cg_key "$cg" memory.events oom_kill)" \
+        "oom kills"  "$(cg_key "$cg" memory.events oom_kill) (since last start)" \
         "pids"       "$(cg_file "$cg" cgroup.procs | tr '\n' ' ')"
     printf '  %-16s %s\n' \
         "cpu used"  "$(cg_key "$cg" cpu.stat usage_usec) usec" \
