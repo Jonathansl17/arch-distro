@@ -12,6 +12,20 @@ configure_snapper_limits() {
         "TIMELINE_LIMIT_YEARLY=0"
 }
 
+# archinstall (and some manual layouts) mount a separate @.snapshots subvolume
+# on /.snapshots, and `snapper create-config` refuses to run over it. Arch
+# wiki procedure: let snapper create its own .snapshots subvolume, delete it,
+# and mount the original one back from fstab.
+create_config_over_mounted_snapshots() {
+    sudo umount /.snapshots
+    sudo rmdir /.snapshots
+    sudo snapper -c "$SNAPPER_CONFIG" create-config /
+    sudo btrfs subvolume delete /.snapshots
+    sudo mkdir /.snapshots
+    sudo mount /.snapshots
+    sudo chmod 750 /.snapshots
+}
+
 step_btrfs() {
     if [[ "$(root_fstype)" != "btrfs" ]]; then
         warn "root is $(root_fstype), not btrfs: skipping snapper (theme 3)"
@@ -21,7 +35,11 @@ step_btrfs() {
         ok "snapper config '$SNAPPER_CONFIG' exists"
     else
         say "Creating snapper config '$SNAPPER_CONFIG' for /"
-        sudo snapper -c "$SNAPPER_CONFIG" create-config /
+        if mountpoint -q /.snapshots; then
+            create_config_over_mounted_snapshots
+        else
+            sudo snapper -c "$SNAPPER_CONFIG" create-config /
+        fi
     fi
     configure_snapper_limits
     sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer

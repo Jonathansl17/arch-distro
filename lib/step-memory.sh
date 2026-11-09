@@ -4,12 +4,16 @@
 create_swapfile() {
     local dir
     dir="$(dirname "$SWAPFILE_PATH")"
-    sudo mkdir -p "$dir"
     if [[ "$(root_fstype)" == "btrfs" ]]; then
+        # btrfs cannot snapshot a subvolume holding an active swap file, so
+        # the swap file needs its own subvolume (excluded from snapshots of /).
+        # A manual install already mounts @swap there; otherwise create one.
+        [[ -d "$dir" ]] || sudo btrfs subvolume create "$dir"
         # mkswapfile sets NOCOW and disables compression, both required for
         # swap on btrfs (the kernel needs fixed physical extents).
         sudo btrfs filesystem mkswapfile --size "${SWAPFILE_SIZE_MIB}m" "$SWAPFILE_PATH"
     else
+        sudo mkdir -p "$dir"
         sudo fallocate -l "${SWAPFILE_SIZE_MIB}M" "$SWAPFILE_PATH"
         sudo chmod 600 "$SWAPFILE_PATH"
         sudo mkswap "$SWAPFILE_PATH" >/dev/null
