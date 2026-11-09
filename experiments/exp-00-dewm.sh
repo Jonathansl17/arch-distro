@@ -7,7 +7,21 @@
 # Output: results/dewm/<label>-*.txt and a line in results/dewm/summary.csv
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
-require smem free
+require free ps
+
+# pss_kib PID -> proportional set size of PID from the kernel (0 if it exited).
+pss_kib() {
+    awk '/^Pss:/ {print $2; found=1} END {if (!found) print 0}' \
+        "/proc/$1/smaps_rollup" 2>/dev/null || echo 0
+}
+
+# pss_table -> "pid pss_kib name" for every process of $USER, biggest first.
+pss_table() {
+    local pid
+    for pid in $(pgrep -u "$USER"); do
+        printf '%s %s %s\n' "$pid" "$(pss_kib "$pid")" "$(ps -o comm= -p "$pid")"
+    done | sort -k2,2nr
+}
 
 SAMPLES=5
 SAMPLE_GAP_SECS=10
@@ -20,10 +34,10 @@ mkdir -p "$out"
 for i in $(seq 1 "$SAMPLES"); do
     used="$(free -m | awk '/^Mem:/ {print $3}')"
     procs="$(ps -u "$USER" --no-headers | wc -l)"
-    pss="$(smem -u -H -c 'user pss' | awk -v u="$USER" '$1 == u {print $2}')"
+    pss="$(pss_table | awk '{sum += $2} END {print sum + 0}')"
     echo "$label,$i,$used,$procs,$pss" | tee -a "$out/summary.csv"
     sleep "$SAMPLE_GAP_SECS"
 done
-smem -r -k -c 'pid name pss rss' -U "$USER" | head -n "$TOP_PROCS" > "$out/$label-top-pss.txt"
+pss_table | head -n "$TOP_PROCS" > "$out/$label-top-pss.txt"
 ps -u "$USER" -o pid,rss,comm --sort=-rss > "$out/$label-ps.txt"
 ok "appended to $out/summary.csv"

@@ -38,7 +38,7 @@ experiments/exp-00-dewm.sh xfce
 
 The script takes 5 samples, 10 s apart, of `free -m` used memory, the number
 of processes owned by the user (`ps -u`) and their proportional set size (PSS)
-from `smem`. PSS splits each shared page among the processes that map it. RSS
+read from `/proc/<pid>/smaps_rollup` (the `Pss:` line). PSS splits each shared page among the processes that map it. RSS
 would count shared libraries once per process and inflate the total.
 
 ## Results

@@ -13,7 +13,6 @@ stress-ng
 
 # Theme 2 - memory
 zram-generator
-smem
 
 # Theme 3 - file system
 btrfs-progs
