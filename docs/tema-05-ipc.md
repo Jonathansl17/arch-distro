@@ -65,9 +65,51 @@ experiments/exp-05-ipc.sh
 
 SIGTERM pilot: exit 130, 0 zombies, 0 `ad-ipc` objects in `/dev/shm`.
 
-**VM run**: pending, same tables from `results/tema-05/`. Add the key strace
-lines (`clone` × 5, `pipe2`, `openat(/dev/shm/ad-ipc-*)`, `kill`, `wait4`)
-with one sentence each.
+**VM run** (2026-11-09 19:35 UTC, `/usr/share/doc`, 4 consumers, raw data in
+`results/tema-05/<ts>/`):
+
+| Mode | run | files | results | bytes | expected bytes | exit |
+|------|-----|-------|---------|-------|----------------|------|
+| mutex | 1–5 | 3785 | 3785 | 102 899 712 | 102 899 712 | 0 (all 5) |
+| --unsafe | 1 | 3785 | 3787 | 99 946 560 | 102 899 712 | 3 |
+| --unsafe | 2 | 3785 | 3785 | 91 707 330 | 102 899 712 | 3 |
+| --unsafe | 3 | 3785 | 3783 | 78 648 894 | 102 899 712 | 3 |
+| --unsafe | 4 | 3785 | 3789 | 92 109 859 | 102 899 712 | 3 |
+| --unsafe | 5 | 3785 | 3781 | 87 923 869 | 102 899 712 | 3 |
+
+The same test ran in 3 earlier passes of `run-all.sh`: the mutex mode was
+exact in all 15 runs and `--unsafe` was wrong in all 15.
+
+**SIGTERM after 2 s** (slow run, `-s 40`): `ps --ppid` showed the 4
+consumers before the signal; then `exit=130`, `zombies=0`, `shm_left=0`
+(no `ad-ipc-*` left in `/dev/shm`). The run stopped after 200 of 220 files.
+
+**strace -f, key lines** (`1-strace-key.txt`, PID 8929 = parent):
+
+```text
+8929 openat(AT_FDCWD, "/dev/shm/ad-ipc-8929", O_RDWR|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC, 0600) = 3
+8929 ftruncate(3, 4240) = 0
+8929 pipe2([3, 4], 0) = 0
+8929 clone(... flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD ...) = 8930   (x5)
+8932 openat(AT_FDCWD, "/usr/share/doc/.../libopenmpt_example_c_pipe.c", O_RDONLY|O_CLOEXEC) = 3
+8931 exit_group(0)    ... one per child
+8929 wait4(-1, NULL, WNOHANG, NULL) = 8931 ... 8934, then -1 ECHILD
+8929 unlink("/dev/shm/ad-ipc-8929") = 0
+8929 exit_group(0)
+```
+
+- `openat("/dev/shm/ad-ipc-<pid>", O_CREAT|O_EXCL, 0600)` is what
+  `shm_open` becomes: POSIX shared memory is a file in the `/dev/shm` tmpfs.
+  `O_EXCL` fails if the name exists, 0600 keeps other users out.
+- `ftruncate(3, 4240)` sizes it to the ring (16 slots, the three semaphores
+  and head/tail) before `mmap`.
+- `pipe2` creates the result pipe before the fork, so every child inherits
+  both ends.
+- `clone(... SIGCHLD)` five times is `fork()`: 1 producer and 4 consumers.
+  `SIGCHLD` in the flags is the signal the parent gets when the child dies.
+- Each child ends with `exit_group(0)`. The parent then calls
+  `wait4(-1, WNOHANG)` until `ECHILD`, which reaps all 5 (`reaped=5`).
+- `unlink` removes the shared memory name, so nothing stays in `/dev/shm`.
 
 ## 5. Interpretation
 

@@ -43,30 +43,74 @@ experiments/exp-02-mem.sh
   `ad-mem --csv -i 1000` (fault rates, zram ratio).
 - Run 1 "with": zram (prio 100) + swap file (prio 10).
   Run 2 "without": `swapoff /dev/zram0`, swap file only. zram is restored afterwards.
-- OOM: `dmesg | grep -i oom` after each run.
-- Repetitions: 3 per configuration.
+- OOM: kernel log lines `Killed process` since the start of each run
+  (`journalctl -k --since @<start>`).
+- Repetitions: 3 per configuration (3 `run-all.sh` passes in the VM,
+  2026-11-09 18:49, 18:59 and 19:20 UTC).
 
 ## 4. Results
 
-Pending (VM). Table per run, average of 3:
+VM: 6 vCPU, 7.6 GiB RAM, zram0 3.8 GiB (zstd, prio 100), swap file 2 GiB
+(prio 10), `vm.swappiness = 10`. Raw data: `results/tema-02/<ts>/`.
 
-| Config | Σ si (KiB/s·s) | Σ so | peak pgmajfault/s | zram ratio | stress-ng bogo ops/s | OOM kill? |
-|--------|----------------|------|-------------------|------------|----------------------|-----------|
-| with zram | | | | | | |
-| without zram | | | | | | |
+**Per run**
 
-Plot suggestion: `swap_used_kib` and `pgmajfault_s` against time from both CSVs.
+| run | config | memory asked / available | stress-ng bogo ops/s | Σ si (KiB/s·s) | Σ so (KiB/s·s) | peak pgmajfault/s | peak swap used | zram ratio | OOM kills |
+|-----|--------|--------------------------|----------------------|----------------|----------------|-------------------|----------------|------------|-----------|
+| 1 | with zram | 7.58 / 5.83 GB | 129 408 | 21.4 M | 22.1 M | 199 990 | 740 MiB | 2.98 | 0 |
+| 1 | without | 9.42 / 7.24 GB | 3 413 | 5.8 M | 27.5 M | 27 027 | 2047 MiB | n/a | 12 |
+| 2 | with zram | 8.74 / 6.73 GB | 84 696 | 29.3 M | 31.9 M | 237 793 | 2694 MiB | 2.61 | 0 |
+| 2 | without | 9.49 / 7.31 GB | 2 677 | 3.8 M | 32.6 M | 22 610 | 2047 MiB | n/a | 12 |
+| 3 | with zram | 8.68 / 6.68 GB | 12 294 | 35.3 M | 38.0 M | 271 882 | 2649 MiB | 2.68 | 0 |
+| 3 | without | 9.34 / 7.20 GB | 3 720 | 5.0 M | 27.9 M | 22 521 | 2047 MiB | n/a | 21 |
+
+**Average of 3 runs**
+
+| config | bogo ops/s | Σ si | Σ so | peak pgmajfault/s | zram ratio | OOM kills per run |
+|--------|------------|------|------|-------------------|------------|-------------------|
+| with zram | 75 466 (12 294–129 408) | 28.6 M | 30.7 M | 236 555 | 2.76 | 0 |
+| without zram | 3 270 (2 677–3 720) | 4.9 M | 29.3 M | 24 053 | n/a | 15 |
+
+Note on the OOM column: runs 1 and 2 were taken before the OOM capture was
+limited to each run's time window, so their files also contained kills from
+earlier experiments of the same boot. The counts above keep only the kills
+whose kernel timestamp falls inside that run. Run 3 already used the fixed
+capture.
 
 ## 5. Interpretation
 
-Pending. Questions to answer with the data:
-
-- With zram, `so` should be high but `stress-ng` throughput should stay close
-  to the no-pressure case, because "swap-out" is a compression in RAM. Without
-  zram the same `so` hits the disk and throughput should drop (thrashing).
-- Is the zram ratio high? The stress-ng pages are very repetitive, so the
-  ratio will be much higher than with real data. Say so when comparing.
-- Swappiness 10 tells the kernel to prefer dropping page cache over swapping
-  anonymous pages. With zram the usual advice is a high value (100-180)
-  because swap is cheap. Check whether the data supports changing it.
-- If the OOM killer fired, which process did it pick and why (`oom_score`)?
+- **zram turns swapping into a RAM operation.** With zram the system swapped
+  out about as much as without it (Σ so 30.7 M vs 29.3 M), yet read pages
+  back about 6 times more (Σ si 28.6 M vs 4.9 M) and peaked at about 10 times
+  more major faults per second. Those major faults are cheap: the page comes
+  from compressed RAM, not from the virtual disk. Without zram the same
+  faults wait for the swap file on btrfs, and stress-ng's throughput falls
+  to 3.3 k ops/s, a classic thrashing curve.
+- **Throughput with zram varies a lot (12 k to 129 k ops/s).** Run 1 asked
+  only 1.75 GB beyond the available memory and peaked at 740 MiB of swap, so
+  it fit almost entirely in zram. Runs 2 and 3 asked about 2 GB beyond it
+  and used 2.6–2.7 GiB of swap. Run 3 spent 104 s of its 122 s CPU time in
+  the kernel (stress-ng `sys` time), compressing and reclaiming. The
+  difference is real but the cause between runs 2 and 3 is not isolated.
+  The conclusion does not depend on it: even the worst zram run is 3.3 times
+  faster than the best run without zram.
+- **The OOM killer and capacity.** Without zram the only swap is the 2 GiB
+  file, and every run filled it (peak 2047 MiB). Once RAM and swap are both
+  full, reclaim fails and the kernel kills the stress-ng worker with the
+  highest `oom_score` (the one with the most anonymous memory, between
+  2.9 and 4.9 GB of RSS in the log). stress-ng restarts it, so the kill repeats
+  12–21 times in 60 s. With zram the total swap is 3.8 + 2 GiB and no kill
+  happened. So this comparison mixes two effects: zram is faster than disk
+  swap, and it also adds capacity. A fairer speed-only test would give the
+  "without" run a swap file the same size as zram.
+- **The "without" run asked for more memory** (0.7 to 1.8 GB more), because
+  `--vm-bytes 130%` is relative to the memory available when each run starts
+  and swapping off zram frees some RAM. It makes that run somewhat harsher.
+- **zram ratio 2.6–3.0.** stress-ng fills pages with patterns that zstd
+  compresses well. Real workloads compress less, so the capacity gain would
+  be smaller.
+- **swappiness 10.** It tells the kernel to reclaim page cache before anonymous
+  pages. Under this load there is almost no page cache to drop, so the
+  kernel swapped anyway. With zram the usual advice is a high value (100 or
+  more) because swapping to zram is cheap. These runs do not test that, so
+  the value is left as arch-config sets it.
