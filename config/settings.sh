@@ -13,6 +13,9 @@ BASE_SKIP_AUR_FILE="config/base-skip-aur.txt"
 # pnpm, Claude Code and go tools (developer setup fetched with curl/go).
 BASE_SKIP_SECTION_START="# --- 4e. nvm"
 BASE_SKIP_SECTION_END="# --- 4f. sysctl"
+# perl ships pod2man and friends in these dirs; /etc/profile.d/perlbin.sh adds
+# them only at login, so a fresh install that pulls perl mid-run misses them.
+PERL_SCRIPT_DIRS=(/usr/bin/site_perl /usr/bin/vendor_perl /usr/bin/core_perl)
 
 # --- Logs ---
 LOG_DIR="$HOME/.local/state/arch-distro"

@@ -35,7 +35,18 @@ drop_section() {
     mv "$tmp" "$script"
 }
 
+# AUR builds (lemonbar-xft-git runs pod2man) need perl's script dirs on PATH
+# even when perl was installed after this shell logged in.
+add_perl_script_dirs() {
+    local dir
+    for dir in "${PERL_SCRIPT_DIRS[@]}"; do
+        [[ ":$PATH:" == *":$dir:"* ]] || PATH="$PATH:$dir"
+    done
+    export PATH
+}
+
 step_base() {
+    add_perl_script_dirs
     ensure_arch_config_clone
     local stage
     stage="$(mktemp -d)"
